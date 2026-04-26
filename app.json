@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "Monte Cristo Solidario",
+    "slug": "monte-cristo-solidario",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./logo-app.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./logo-app.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1a3d6e"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./logo-app.png",
+        "backgroundColor": "#1a3d6e"
+      }
+    }
+  }
+}
