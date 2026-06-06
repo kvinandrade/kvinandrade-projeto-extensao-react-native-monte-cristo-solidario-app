@@ -20,6 +20,17 @@ npm start
 
 Use o **Expo Go** no celular ou pressione `w` para abrir no navegador.
 
+## Acesso para avaliação
+
+Credenciais de **demonstração** (perfil administrador), usadas apenas para testes do projeto:
+
+| Campo | Valor |
+|-------|-------|
+| E-mail | `master@montecristo.org` |
+| Senha temporária | `CozinhaMae2026!` |
+
+Na implantação real, a instituição define usuários e senhas pelo próprio app (Configurações → Gestão de Administradores).
+
 ## Gerar APK (Android)
 
 ```bash
