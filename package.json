@@ -7,9 +7,7 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web",
-    "prints": "node entregaveis/scripts/capture-screenshots.mjs",
-    "pdfs": "node entregaveis/scripts/generate-pdfs.mjs"
+    "web": "expo start --web"
   },
   "keywords": [],
   "author": "",

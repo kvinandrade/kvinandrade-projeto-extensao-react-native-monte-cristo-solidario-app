@@ -13,3 +13,26 @@ npm-debug.*
 web-build/
 dist/*.apk
 .DS_Store
+
+# Entregáveis acadêmicos (ficam só no seu PC)
+entregaveis/
+
+# Documentação interna / confidencial
+ENTREGA_CINTIA.md
+FIREBASE_REGRAS_PRODUCAO.md
+FIREBASE_SETUP.md
+FIREBASE_SETUP_MANUAL.md
+CHECKLIST_FINAL.md
+BUILD_DEPLOY_GUIDE.md
+scripts/
+
+# Config Firebase local
+firebase.json
+database.rules.json
+.firebaserc
+
+# Ferramentas internas
+.github/
+build-mobile.sh
+build-web.sh
+create-web.sh

@@ -14,14 +14,13 @@ App mobile (React Native + Expo) para gestão da distribuição semanal de alime
 
 ```bash
 npm install
+# copie .env.example para .env e preencha o Firebase
 npm start
 ```
 
-Use o **Expo Go** no celular ou `w` para abrir no navegador.
+Use o **Expo Go** no celular ou pressione `w` para abrir no navegador.
 
-## APK Android
-
-Link e instruções de instalação: [`ENTREGA_CINTIA.md`](ENTREGA_CINTIA.md)
+## Gerar APK (Android)
 
 ```bash
 npx eas-cli build --platform android --profile preview
