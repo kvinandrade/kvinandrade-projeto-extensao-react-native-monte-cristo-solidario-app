@@ -2,7 +2,7 @@
   "expo": {
     "name": "Monte Cristo Solidario",
     "slug": "monte-cristo-solidario",
-    "version": "1.0.0",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./logo-app.png",
     "userInterfaceStyle": "light",
@@ -21,6 +21,12 @@
       "adaptiveIcon": {
         "foregroundImage": "./logo-app.png",
         "backgroundColor": "#1a3d6e"
+      },
+      "package": "com.kvinandrade.montecristosolidario"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "ce4d916e-fb71-46ea-a130-372535bf6ed3"
       }
     }
   }

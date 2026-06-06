@@ -40,13 +40,13 @@ const DashboardScreen = ({ navigation }) => {
   const { config, totals, weeklySummary, distributedCount, ticketsSemana } = useAppData();
 
   const tiles = [
-    { label: "Famílias", value: totals.ativas + totals.inativas, subtitle: "Total cadastradas" },
+    { label: "Famílias", value: totals.ativas + totals.inativas + (totals.emEspera || 0), subtitle: "Ativas, inativas e espera" },
     { label: "Ativas", value: totals.ativas, subtitle: "Em atendimento" },
     { label: "Inativas", value: totals.inativas, subtitle: "Sem retirada recente" },
     { label: "Lista de espera", value: totals.emEspera || 0, subtitle: "Aguardando vaga" },
     { label: "Retiradas semana", value: weeklySummary.retiraram, subtitle: "Confirmadas" },
     { label: "Não retiraram", value: weeklySummary.naoRetiraram, subtitle: "Da lista semanal" },
-    { label: "Distribuídos", value: distributedCount, subtitle: "Itens estimados" },
+    { label: "Retiradas confirmadas", value: distributedCount, subtitle: "Total de atendimentos" },
   ];
 
   const chartWidth = screenWidth - theme.spacing.md * 2 - 32;

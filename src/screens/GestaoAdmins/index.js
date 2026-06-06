@@ -26,14 +26,14 @@ const GestaoAdminsScreen = () => {
 
   const [adminNome, setAdminNome] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
-  const [adminSenha, setAdminSenha] = useState("123456");
+  const [adminSenha, setAdminSenha] = useState("");
   const [feedback, setFeedback] = useState("");
 
   const admins = users.filter((u) => u.role === "ADMIN");
 
   const onCreateAdmin = () => {
-    if (!adminNome.trim() || !adminEmail.trim()) {
-      setFeedback("Preencha nome e e-mail.");
+    if (!adminNome.trim() || !adminEmail.trim() || !adminSenha.trim()) {
+      setFeedback("Preencha nome, e-mail e senha.");
       return;
     }
     const result = createAdmin({
@@ -46,7 +46,7 @@ const GestaoAdminsScreen = () => {
     if (result.ok) {
       setAdminNome("");
       setAdminEmail("");
-      setAdminSenha("123456");
+      setAdminSenha("");
     }
   };
 
@@ -129,6 +129,7 @@ const GestaoAdminsScreen = () => {
             label="Senha inicial"
             value={adminSenha}
             onChangeText={setAdminSenha}
+            secureTextEntry
           />
           <ButtonCustom
             title="Criar administrador"

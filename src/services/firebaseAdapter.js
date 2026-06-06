@@ -1,4 +1,10 @@
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps } from "firebase/app";
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+} from "firebase/auth";
 import {
   getDatabase,
   ref,
@@ -22,14 +28,17 @@ const firebaseConfig = {
 
 let firebaseApp = null;
 let database = null;
+let auth = null;
 let isEnabled = false;
 
 const initFirebase = () => {
   try {
-    firebaseApp = initializeApp(firebaseConfig);
+    if (!firebaseApp) {
+      firebaseApp = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+    }
+    auth = getAuth(firebaseApp);
     database = getDatabase(firebaseApp);
     isEnabled = true;
-    console.log("Firebase initialized successfully");
     return true;
   } catch (error) {
     console.error("Firebase initialization error:", error);
@@ -38,10 +47,79 @@ const initFirebase = () => {
   }
 };
 
+const authenticateFirebase = async (email, password) => {
+  if (!isEnabled) initFirebase();
+  if (!auth) return false;
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+    return true;
+  } catch (error) {
+    if (error?.code === "auth/user-not-found" || error?.code === "auth/invalid-credential") {
+      try {
+        await createUserWithEmailAndPassword(auth, email, password);
+        return true;
+      } catch (createError) {
+        if (createError?.code === "auth/email-already-in-use") {
+          await signInWithEmailAndPassword(auth, email, password);
+          return true;
+        }
+        console.error("Firebase create user error:", createError);
+        return false;
+      }
+    }
+    console.error("Firebase auth error:", error);
+    return false;
+  }
+};
+
+const logoutFirebase = async () => {
+  if (!auth) return;
+  try {
+    await signOut(auth);
+  } catch (error) {
+    console.warn("Firebase logout error:", error);
+  }
+};
+
+const ensureUserProfile = async (appUser) => {
+  if (!isEnabled || !auth?.currentUser || !appUser) return false;
+  try {
+    const uid = auth.currentUser.uid;
+    await set(ref(database, `users/${uid}`), {
+      id: appUser.id,
+      nome: appUser.nome,
+      email: appUser.email,
+      role: appUser.role,
+      permissions: appUser.permissions || {},
+      ativo: appUser.ativo !== false,
+    });
+    return true;
+  } catch (error) {
+    console.warn("Erro ao sincronizar perfil no Firebase:", error);
+    return false;
+  }
+};
+
+const testConnection = async () => {
+  if (!isEnabled) initFirebase();
+  if (!database) return false;
+  try {
+    await get(ref(database, "config"));
+    return true;
+  } catch (error) {
+    console.warn("Firebase indisponível:", error?.message || error);
+    return false;
+  }
+};
+
 export const firebaseAdapter = {
   isEnabled: false,
-  
+
   init: initFirebase,
+  authenticate: authenticateFirebase,
+  logout: logoutFirebase,
+  ensureUserProfile,
+  testConnection,
 
   // Users
   async setUser(userId, userData) {
@@ -95,6 +173,19 @@ export const firebaseAdapter = {
     await remove(ref(database, "families"));
   },
 
+  async wipeOperationalData(emptyWeekEntry) {
+    if (!isEnabled) throw new Error("Firebase not initialized");
+    await Promise.all([
+      remove(ref(database, "families")),
+      remove(ref(database, "tickets")),
+      remove(ref(database, "losses")),
+      remove(ref(database, "foods")),
+      emptyWeekEntry
+        ? set(ref(database, "foodWeeklyEntries"), { [emptyWeekEntry.id]: emptyWeekEntry })
+        : remove(ref(database, "foodWeeklyEntries")),
+    ]);
+  },
+
   async updateFamily(familyId, updates) {
     if (!isEnabled) throw new Error("Firebase not initialized");
     await update(ref(database, `families/${familyId}`), updates);
@@ -133,6 +224,11 @@ export const firebaseAdapter = {
   async updateTicket(ticketId, updates) {
     if (!isEnabled) throw new Error("Firebase not initialized");
     await update(ref(database, `tickets/${ticketId}`), updates);
+  },
+
+  async deleteTicket(ticketId) {
+    if (!isEnabled) throw new Error("Firebase not initialized");
+    await remove(ref(database, `tickets/${ticketId}`));
   },
 
   async deleteTickets(dateKey) {
@@ -174,6 +270,17 @@ export const firebaseAdapter = {
     await remove(ref(database, `foods/${foodId}`));
   },
 
+  async setFoodWeeklyEntries(entries) {
+    if (!isEnabled) throw new Error("Firebase not initialized");
+    const normalized = Array.isArray(entries) ? entries : [];
+    const asMap = normalized.reduce((acc, entry) => {
+      if (!entry?.id) return acc;
+      acc[entry.id] = entry;
+      return acc;
+    }, {});
+    await set(ref(database, "foodWeeklyEntries"), asMap);
+  },
+
   // Losses/Perdas
   async addLoss(lossData) {
     if (!isEnabled) throw new Error("Firebase not initialized");
@@ -210,19 +317,21 @@ export const firebaseAdapter = {
   },
 
   async seedInitialData(initialData) {
-    if (!isEnabled) return;
+    if (!isEnabled || !initialData) return;
     try {
-      const snapshot = await get(ref(database, 'families'));
-      const currentFamilies = snapshot.val() || {};
-      const familyCount = Object.keys(currentFamilies).length;
-      
-      // Se não tem famílias no Firebase, faz seed
-      if (familyCount === 0 && initialData) {
-        await set(ref(database), initialData);
-        console.log('Firebase seeded with initial data');
+      const snapshot = await get(ref(database, "config"));
+      const hasConfig = !!snapshot.val();
+
+      if (!hasConfig) {
+        await set(ref(database, "config"), initialData.config || {});
+      }
+
+      const familiesSnapshot = await get(ref(database, "families"));
+      if (!familiesSnapshot.val() && initialData.families) {
+        await set(ref(database, "families"), initialData.families);
       }
     } catch (error) {
-      console.warn('Erro ao fazer seed do Firebase:', error);
+      console.warn("Erro ao fazer seed do Firebase:", error);
     }
   },
 

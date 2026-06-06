@@ -164,7 +164,7 @@ export const familiaService = {
     const numero = String(familyPayload.numero || "").trim();
     const endereco = logradouro ? `${logradouro}, ${numero}`.trim() : (familyPayload.endereco || "");
 
-    if (familyPayload.id) {
+    if (familyPayload.id && familias.some((family) => family.id === familyPayload.id)) {
       return familias.map((family) =>
         family.id === familyPayload.id
           ? { ...family, ...familyPayload, cpf, telefone, logradouro, numero, endereco }

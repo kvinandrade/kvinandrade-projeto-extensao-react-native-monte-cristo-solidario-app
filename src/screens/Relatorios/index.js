@@ -5,9 +5,10 @@ import ButtonCustom from "../../components/ButtonCustom";
 import Card from "../../components/Card";
 import Header from "../../components/Header";
 import { useAppData } from "../../hooks/useAppData";
+import { foodWeeklyService } from "../../services/foodWeeklyService";
 import { theme } from "../../theme";
 
-const buildReportText = ({ reportDate, summary, totals, atendimentoPercent }) => {
+const buildReportText = ({ reportDate, summary, weeklyFoodSummary, atendimentoPercent }) => {
   const date = reportDate ? new Date(`${reportDate}T12:00:00`) : new Date();
   const dataStr = date.toLocaleDateString("pt-BR", {
     weekday: "long",
@@ -26,10 +27,11 @@ const buildReportText = ({ reportDate, summary, totals, atendimentoPercent }) =>
     `❌ Não retiraram: ${summary.naoRetiraram}`,
     `📊 Percentual atendido: ${atendimentoPercent.toFixed(1)}%`,
     "",
-    "*ALIMENTOS*",
-    `📦 Perda estimada na semana: ${totals.perdaSemanalPercent.toFixed(1)}%`,
-    `🏪 Itens recebidos (total): ${totals.totalAlimentosRecebidos}`,
-    `🗑️ Itens perdidos (total): ${totals.totalPerdas}`,
+    "*ALIMENTOS DA SEMANA*",
+    `📥 Entradas da semana: ${weeklyFoodSummary.entryItems}`,
+    `🗑️ Perdas da semana: ${weeklyFoodSummary.lossItems}`,
+    `📦 Saldo da semana: ${weeklyFoodSummary.availableItems}`,
+    `📊 Perda da semana: ${weeklyFoodSummary.lossPercent.toFixed(1)}%`,
     "",
     "━━━━━━━━━━━━━━━━━━━━",
     "_Gerado pelo sistema Monte Cristo Solidário_",
@@ -57,7 +59,7 @@ const formatDate = (dateKey) => {
 };
 
 const RelatoriosScreen = () => {
-  const { historicoListas, totals } = useAppData();
+  const { historicoListas, foodWeeklyEntries, perdas } = useAppData();
   const [copied, setCopied] = useState(false);
   const [selectedDate, setSelectedDate] = useState("");
 
@@ -80,13 +82,36 @@ const RelatoriosScreen = () => {
       : 0;
 
   const selectedDateLabel = currentEntry ? formatDate(currentEntry.dateKey) : "-";
+  const selectedWeekKey = currentEntry?.weekKey || foodWeeklyService.getCurrentWeekKey();
+  const selectedFoodEntryId = currentEntry?.foodEntryId || null;
+
+  const weeklyFoodSummary = useMemo(() => {
+    const weekEntry = selectedFoodEntryId
+      ? foodWeeklyEntries.find((entry) => entry.id === selectedFoodEntryId)
+      : [...foodWeeklyEntries]
+          .filter((entry) => entry.weekKey === selectedWeekKey)
+          .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))[0];
+    const foods = weekEntry?.foods || [];
+    const weekLosses = perdas.filter((loss) =>
+      weekEntry?.id ? loss.foodEntryId === weekEntry.id : loss.weekKey === selectedWeekKey
+    );
+    const entryItems = foods.reduce(
+      (sum, food) => sum + Number(food.caixasRecebidas || 0) * Number(food.itensPorCaixa || 0),
+      0
+    );
+    const lossItems = weekLosses.reduce((sum, loss) => sum + Number(loss.quantidade || 0), 0);
+    const availableItems = Math.max(0, entryItems - lossItems);
+    const lossPercent = entryItems > 0 ? (lossItems / entryItems) * 100 : 0;
+
+    return { entryItems, lossItems, availableItems, lossPercent };
+  }, [foodWeeklyEntries, perdas, selectedWeekKey, selectedFoodEntryId]);
 
   const onCopyReport = async () => {
     if (!currentEntry) return;
     const text = buildReportText({
       reportDate: currentEntry.dateKey,
       summary,
-      totals,
+      weeklyFoodSummary,
       atendimentoPercent: safeAtendimentoPercent,
     });
     await Clipboard.setStringAsync(text);
@@ -105,9 +130,10 @@ const RelatoriosScreen = () => {
           <Row label="Famílias atendidas" value={summary.retiraram} />
           <Row label="Famílias não atendidas" value={summary.naoRetiraram} />
           <Row label="Percentual atendido" value={`${safeAtendimentoPercent.toFixed(1)}%`} />
-          <Row label="Perda semanal estimada" value={`${totals.perdaSemanalPercent.toFixed(1)}%`} />
-          <Row label="Itens recebidos" value={totals.totalAlimentosRecebidos} />
-          <Row label="Itens perdidos" value={totals.totalPerdas} />
+          <Row label="Entradas da semana" value={weeklyFoodSummary.entryItems} />
+          <Row label="Perdas da semana" value={weeklyFoodSummary.lossItems} />
+          <Row label="Saldo da semana" value={weeklyFoodSummary.availableItems} />
+          <Row label="Perda da semana" value={`${weeklyFoodSummary.lossPercent.toFixed(1)}%`} />
         </Card>
 
         <Card>
@@ -142,7 +168,7 @@ const RelatoriosScreen = () => {
             Copia o relatório formatado para colar no WhatsApp, e-mail ou PDF.
           </Text>
           <ButtonCustom
-            title={copied ? "✓ Copiado!" : "Copiar relatório para WhatsApp"}
+            title={copied ? "Relatório copiado" : "Copiar relatório para WhatsApp"}
             onPress={onCopyReport}
             variant={copied ? "secondary" : "primary"}
           />

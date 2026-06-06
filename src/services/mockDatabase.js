@@ -1,4 +1,5 @@
 import { ADMIN_PERMISSIONS, createUser, USER_ROLES } from "../models/userModel";
+import { getWeekKey, getWeekStart } from "../utils/dateUtils";
 
 export const initialConfig = {
   nomeApp: "Monte Cristo Solidário",
@@ -11,19 +12,10 @@ export const initialConfig = {
 export const initialUsers = [
   createUser({
     id: "u1",
-    nome: "Admin Master",
+    nome: "Administrador Master",
     email: "master@montecristo.org",
-    senha: "123456",
+    senha: "CozinhaMae2026!",
     role: USER_ROLES.MASTER,
-    permissions: ADMIN_PERMISSIONS,
-    ativo: true,
-  }),
-  createUser({
-    id: "u2",
-    nome: "Admin Operacional",
-    email: "admin@montecristo.org",
-    senha: "123456",
-    role: USER_ROLES.ADMIN,
     permissions: ADMIN_PERMISSIONS,
     ativo: true,
   }),
@@ -264,20 +256,22 @@ export const initialFoods = [
 ];
 
 const getCurrentWeekKey = () => {
-  const now = new Date();
-  const day = now.getDay();
-  const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-  const monday = new Date(now.setDate(diff));
+  return getWeekKey(new Date());
+};
+
+const getCurrentWeekStartKey = () => {
+  const monday = getWeekStart(new Date());
   const y = monday.getFullYear();
   const m = String(monday.getMonth() + 1).padStart(2, "0");
   const d = String(monday.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
 };
 
-export const initialFoodWeeklyEntries = [
+export const getInitialFoodWeeklyEntries = () => [
   {
+    id: "food-week-initial",
     weekKey: getCurrentWeekKey(),
-    startDate: getCurrentWeekKey(),
+    startDate: getCurrentWeekStartKey(),
     createdAt: new Date().toISOString(),
     foods: initialFoods,
     archivedAt: null,
@@ -288,9 +282,11 @@ export const initialLosses = [
   {
     id: "loss1",
     foodId: "food2",
+    foodEntryId: "food-week-initial",
     nome: "Feijao",
     quantidade: 15,
     reason: "Embalagens danificadas",
+    weekKey: getCurrentWeekKey(),
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(),
   },
 ];

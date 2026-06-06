@@ -21,8 +21,8 @@ const logoImg = require("../../../logo-app.png");
 const LoginScreen = () => {
   const { config } = useAppData();
   const { login, loading, error } = useAuth();
-  const [email, setEmail] = useState("master@montecristo.org");
-  const [senha, setSenha] = useState("123456");
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -57,11 +57,6 @@ const LoginScreen = () => {
             />
 
             <ButtonCustom title="Entrar" loading={loading} onPress={() => login(email, senha)} />
-
-            <View style={styles.hintWrap}>
-              <Text style={styles.hintText}>MASTER: master@montecristo.org / 123456</Text>
-              <Text style={styles.hintText}>ADMIN: admin@montecristo.org / 123456</Text>
-            </View>
           </Card>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -127,14 +122,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "700",
     marginBottom: theme.spacing.md,
-  },
-  hintWrap: {
-    marginTop: theme.spacing.sm,
-  },
-  hintText: {
-    color: theme.colors.textSoft,
-    fontSize: 12,
-    marginTop: 2,
   },
 });
 

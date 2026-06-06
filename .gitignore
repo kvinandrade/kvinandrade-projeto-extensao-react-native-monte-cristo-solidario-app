@@ -1,6 +1,8 @@
 node_modules/
 .expo/
 .expo-shared/
+.env
+.env.local
 npm-debug.*
 *.jks
 *.p8
@@ -9,4 +11,5 @@ npm-debug.*
 *.mobileprovision
 *.orig
 web-build/
+dist/*.apk
 .DS_Store

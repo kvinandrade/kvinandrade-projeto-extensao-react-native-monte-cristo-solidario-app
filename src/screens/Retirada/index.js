@@ -59,6 +59,8 @@ const RetiradaScreen = () => {
     ticketsSemana,
     generateWeeklyTickets,
     markWithdrawal,
+    updateTicketSchedule,
+    deleteTicketSchedule,
     searchTickets,
     buildWhatsappMessage,
   } = useAppData();
@@ -70,8 +72,27 @@ const RetiradaScreen = () => {
   const [dateInput, setDateInput] = useState(todayBR());
   const [query, setQuery] = useState("");
   const [feedback, setFeedback] = useState("");
+  const [listCopied, setListCopied] = useState(false);
+  const [overlayMessage, setOverlayMessage] = useState("");
+  const [showOverlay, setShowOverlay] = useState(false);
+  const [editingTicketId, setEditingTicketId] = useState("");
+  const [editingHour, setEditingHour] = useState("");
 
-  const filteredTickets = useMemo(() => searchTickets(query), [query, searchTickets]);
+  const showActionOverlay = (message) => {
+    setOverlayMessage(message);
+    setShowOverlay(true);
+    setTimeout(() => setShowOverlay(false), 2200);
+  };
+
+  const targetDate = brToIso(dateInput);
+  const weeklyTickets = useMemo(
+    () => (targetDate ? ticketsSemana.filter((ticket) => ticket.dateKey === targetDate) : []),
+    [ticketsSemana, targetDate]
+  );
+  const filteredTickets = useMemo(
+    () => searchTickets(query).filter((ticket) => !targetDate || ticket.dateKey === targetDate),
+    [query, searchTickets, targetDate]
+  );
 
   const onChangeDate = (raw) => setDateInput(applyDateMask(raw));
 
@@ -81,15 +102,7 @@ const RetiradaScreen = () => {
       setStartHour(masked);
     }
   };
-if (!isValidHour(startHour)) {
-      setFeedback(`Horário de início inválido: ${startHour}. Use HH:MM em formato 24h.`);
-      return;
-    }
-    if (!isValidHour(afternoonHour)) {
-      setFeedback(`Horário da tarde inválido: ${afternoonHour}. Use HH:MM em formato 24h.`);
-      return;
-    }
-    
+
   const onChangeAfternoonHour = (raw) => {
     const masked = applyHourMask(raw);
     if (masked.length <= 5) {
@@ -98,26 +111,55 @@ if (!isValidHour(startHour)) {
   };
 
   const onGenerateList = () => {
+    if (period !== "tarde" && !isValidHour(startHour)) {
+      setFeedback(`Horário de início inválido: ${startHour}. Use HH:MM em formato 24h.`);
+      return;
+    }
+    if (period !== "manha" && !isValidHour(afternoonHour)) {
+      setFeedback(`Horário da tarde inválido: ${afternoonHour}. Use HH:MM em formato 24h.`);
+      return;
+    }
+
     const isoDate = brToIso(dateInput);
     if (!isoDate) {
       setFeedback("Data inválida. Use o formato DD-MM-AAAA.");
       return;
     }
-    const result = generateWeeklyTickets({ startHour, targetDate: isoDate, interval, period, afternoonHour });
-    if (!result.ok) {
-      setFeedback(result.message);
+    const runGeneration = () => {
+      const result = generateWeeklyTickets({ startHour, targetDate: isoDate, interval, period, afternoonHour });
+      if (!result.ok) {
+        setFeedback(result.message);
+        return;
+      }
+      const msg = `Lista de ${dateInput} gerada com ${result.list.length} senhas.`;
+      setFeedback(msg);
+      showActionOverlay(msg);
+    };
+
+    const existingForDate = ticketsSemana.filter((ticket) => ticket.dateKey === isoDate);
+    if (existingForDate.length > 0) {
+      Alert.alert(
+        "Substituir lista do dia",
+        "Já existe uma lista para esta data. Deseja substituir os agendamentos atuais?",
+        [
+          { text: "Cancelar", style: "cancel" },
+          { text: "Substituir", style: "destructive", onPress: runGeneration },
+        ]
+      );
       return;
     }
-    setFeedback(`Lista de ${dateInput} gerada com ${result.list.length} senhas.`);
+
+    runGeneration();
   };
 
   const onMark = (ticketId) => {
     const result = markWithdrawal(ticketId);
     setFeedback(result.message);
+    if (result.ok) showActionOverlay("Retirada registrada com sucesso.");
   };
 
   const copyList = async () => {
-    if (!ticketsSemana.length) {
+    if (!weeklyTickets.length) {
       setFeedback("Gere a lista semanal antes de copiar.");
       return;
     }
@@ -126,12 +168,15 @@ if (!isValidHour(startHour)) {
       period === "tarde" ? afternoonHour :
       period === "ambos" ? `${startHour} / ${afternoonHour}` :
       startHour;
-    const text = retiradaService.buildListMessage(ticketsSemana, familias, {
+    const text = retiradaService.buildListMessage(weeklyTickets, familias, {
       targetDate: isoDate,
       startHour: startLabel,
     });
     await Clipboard.setStringAsync(text);
     setFeedback("Lista copiada para a área de transferência.");
+    showActionOverlay("Lista copiada");
+    setListCopied(true);
+    setTimeout(() => setListCopied(false), 3000);
   };
 
   const copyWhatsappMessage = async (ticket) => {
@@ -142,10 +187,52 @@ if (!isValidHour(startHour)) {
     Alert.alert("Mensagem copiada", "Mensagem pronta para WhatsApp copiada.");
   };
 
+  const startEditTicket = (ticket) => {
+    setEditingTicketId(ticket.id);
+    setEditingHour(ticket.horario || "");
+  };
+
+  const saveEditedTicket = () => {
+    if (!editingTicketId) return;
+    if (!isValidHour(editingHour)) {
+      setFeedback(`Horário inválido: ${editingHour}. Use HH:MM em formato 24h.`);
+      return;
+    }
+    const result = updateTicketSchedule(editingTicketId, editingHour);
+    setFeedback(result.message);
+    if (result.ok) {
+      showActionOverlay("Agendamento atualizado");
+      setEditingTicketId("");
+      setEditingHour("");
+    }
+  };
+
+  const onDeleteTicket = (ticketId) => {
+    Alert.alert(
+      "Excluir agendamento",
+      "Tem certeza que deseja excluir este agendamento?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Excluir",
+          style: "destructive",
+          onPress: () => {
+            const result = deleteTicketSchedule(ticketId);
+            setFeedback(result.message);
+            if (result.ok) showActionOverlay("Agendamento excluído");
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
         <Header title="Retiradas" subtitle="Busca por CPF, nome ou senha" />
+        <Card>
+          <Text style={styles.meta}>Agendamentos da semana: {weeklyTickets.length}</Text>
+        </Card>
 
         <Card>
           {period !== "tarde" && (
@@ -210,7 +297,11 @@ if (!isValidHour(startHour)) {
           </View>
 
           <ButtonCustom title="Gerar lista semanal" onPress={onGenerateList} />
-          <ButtonCustom title="Copiar lista" variant="secondary" onPress={copyList} />
+          <ButtonCustom
+            title={listCopied ? "Lista copiada" : "Copiar lista"}
+            variant="secondary"
+            onPress={copyList}
+          />
         </Card>
 
         <Card>
@@ -245,12 +336,53 @@ if (!isValidHour(startHour)) {
                 variant="secondary"
                 onPress={() => copyWhatsappMessage(ticket)}
               />
+              {editingTicketId === ticket.id ? (
+                <>
+                  <InputCustom
+                    label="Novo horário (HH:MM)"
+                    value={editingHour}
+                    onChangeText={(raw) => setEditingHour(applyHourMask(raw))}
+                    maxLength={5}
+                    keyboardType="number-pad"
+                  />
+                  <ButtonCustom title="Salvar horário" onPress={saveEditedTicket} />
+                  <ButtonCustom
+                    title="Cancelar edição"
+                    variant="secondary"
+                    onPress={() => {
+                      setEditingTicketId("");
+                      setEditingHour("");
+                    }}
+                  />
+                </>
+              ) : (
+                <>
+                  <ButtonCustom
+                    title="Editar agendamento"
+                    variant="secondary"
+                    onPress={() => startEditTicket(ticket)}
+                  />
+                  <ButtonCustom
+                    title="Excluir agendamento"
+                    variant="danger"
+                    onPress={() => onDeleteTicket(ticket.id)}
+                  />
+                </>
+              )}
             </Card>
           );
         })}
 
         {!!feedback && <Text style={styles.feedback}>{feedback}</Text>}
       </ScrollView>
+      {showOverlay && (
+        <View style={styles.overlayWrap}>
+          <View style={styles.overlayCard}>
+            <Text style={styles.overlayTitle}>Retiradas</Text>
+            <Text style={styles.overlayText}>{overlayMessage}</Text>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 };
@@ -308,6 +440,37 @@ const styles = StyleSheet.create({
   },
   pillTextActive: {
     color: "#fff",
+  },
+  overlayWrap: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 28,
+    alignItems: "center",
+    paddingHorizontal: theme.spacing.md,
+  },
+  overlayCard: {
+    width: "100%",
+    maxWidth: 420,
+    backgroundColor: theme.colors.success,
+    borderRadius: theme.radius.md,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  overlayTitle: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 15,
+  },
+  overlayText: {
+    color: "#fff",
+    marginTop: 4,
+    fontSize: 13,
   },
 });
 

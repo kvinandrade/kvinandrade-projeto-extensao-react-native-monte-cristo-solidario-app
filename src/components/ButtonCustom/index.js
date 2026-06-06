@@ -1,8 +1,20 @@
-import React from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text } from "react-native";
+import React, { useRef } from "react";
+import { ActivityIndicator, Animated, Pressable, StyleSheet, Text } from "react-native";
 import { theme } from "../../theme";
 
 const ButtonCustom = ({ title, onPress, variant = "primary", disabled, loading }) => {
+  const scale = useRef(new Animated.Value(1)).current;
+  const isDisabled = disabled || loading;
+
+  const animateScale = (toValue) => {
+    Animated.spring(scale, {
+      toValue,
+      useNativeDriver: true,
+      speed: 30,
+      bounciness: 6,
+    }).start();
+  };
+
   const styleByVariant =
     variant === "secondary"
       ? styles.secondary
@@ -11,17 +23,26 @@ const ButtonCustom = ({ title, onPress, variant = "primary", disabled, loading }
         : styles.primary;
 
   return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled || loading}
-      style={[styles.button, styleByVariant, (disabled || loading) && styles.disabled]}
-    >
-      {loading ? (
-        <ActivityIndicator color="#fff" />
-      ) : (
-        <Text style={[styles.text, variant === "secondary" && styles.textSecondary]}>{title}</Text>
-      )}
-    </Pressable>
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={() => !isDisabled && animateScale(0.97)}
+        onPressOut={() => !isDisabled && animateScale(1)}
+        disabled={isDisabled}
+        style={({ pressed }) => [
+          styles.button,
+          styleByVariant,
+          pressed && !isDisabled && styles.pressed,
+          isDisabled && styles.disabled,
+        ]}
+      >
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={[styles.text, variant === "secondary" && styles.textSecondary]}>{title}</Text>
+        )}
+      </Pressable>
+    </Animated.View>
   );
 };
 
@@ -54,6 +75,9 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.6,
+  },
+  pressed: {
+    opacity: 0.9,
   },
 });
 

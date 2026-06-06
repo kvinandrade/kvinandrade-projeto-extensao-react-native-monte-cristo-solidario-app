@@ -1,9 +1,8 @@
+import { getWeekKey, getWeekStart } from "../utils/dateUtils";
+
 // Calculate the start date of current week (Monday)
 const weekMonday = () => {
-  const now = new Date();
-  const day = now.getDay();
-  const diff = now.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is Sunday
-  return new Date(now.setDate(diff));
+  return getWeekStart(new Date());
 };
 
 const dateToKey = (date) => {
@@ -15,8 +14,7 @@ const dateToKey = (date) => {
 
 export const foodWeeklyService = {
   getCurrentWeekKey: () => {
-    const monday = weekMonday();
-    return dateToKey(monday);
+    return getWeekKey(new Date());
   },
 
   isNewWeek: (lastWeekKey) => {
@@ -24,12 +22,15 @@ export const foodWeeklyService = {
     return lastWeekKey !== currentWeekKey;
   },
 
-  createFoodEntryWeek: (foods, weekKey) => {
+  createFoodEntryWeek: (foods, weekKey, id) => {
+    const monday = weekMonday();
     return {
-      weekKey,
-      startDate: weekKey,
+      id: id || `food-week-${Date.now()}`,
+      weekKey: weekKey || foodWeeklyService.getCurrentWeekKey(),
+      startDate: dateToKey(monday),
       createdAt: new Date().toISOString(),
       foods: foods || [],
+      archivedAt: null,
     };
   },
 
@@ -41,8 +42,9 @@ export const foodWeeklyService = {
   },
 
   getCurrentWeekFood: (foodEntries = []) => {
-    const currentKey = foodWeeklyService.getCurrentWeekKey();
-    const current = foodEntries.find((entry) => entry.weekKey === currentKey && !entry.archivedAt);
+    const current = [...foodEntries]
+      .filter((entry) => !entry.archivedAt)
+      .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))[0];
     return current ? current.foods : [];
   },
 
